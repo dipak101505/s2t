@@ -1,70 +1,100 @@
-# Getting Started with Create React App
+# Student Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern React application for managing student records with full CRUD operations.
+
+## Features
+
+- **Create**: Add new students with name, email, age, grade, and major
+- **Read**: View all students in a responsive table format
+- **Update**: Edit existing student information
+- **Delete**: Remove students with confirmation
+- **Search**: Find students by name or email
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+
+## Student Fields
+
+- **Full Name**: Student's complete name
+- **Address**: Student's full address
+- **Email Address**: Student's email address
+- **Phone Number**: Student's contact number
+
+## How to Use
+
+1. **Add a Student**: Click "Add New Student" button and fill out the form
+2. **Edit a Student**: Click the edit button (✏️) next to any student record
+3. **Delete a Student**: Click the delete button (🗑️) next to any student record
+4. **Search Students**: Use the search bar to find students by name, email, or phone number
+5. **View All Students**: All students are displayed in a table below the form
+
+## Data Persistence
+
+Student data is automatically saved to **AWS DynamoDB**, providing scalable, reliable cloud storage. The system uses AWS SDK v3 for optimal performance and security.
+
+## Getting Started
+
+1. **Set up AWS DynamoDB** (see [DYNAMODB_SETUP.md](./DYNAMODB_SETUP.md) for detailed instructions):
+   - Create DynamoDB table
+   - Set up IAM user with proper permissions
+   - Configure environment variables
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create `.env` file with your AWS credentials:
+   ```bash
+   # Copy env.template to .env and fill in your credentials
+   cp env.template .env
+   
+   # Then edit .env with your actual AWS credentials:
+   REACT_APP_AWS_REGION=us-east-1
+   REACT_APP_AWS_ACCESS_KEY_ID=your_access_key_here
+   REACT_APP_AWS_SECRET_ACCESS_KEY=your_secret_key_here
+   REACT_APP_STUDENTS_TABLE=students-table
+   ```
+
+4. Start the development server:
+   ```bash
+   npm start
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
 ## Available Scripts
 
-In the project directory, you can run:
+- `npm start` - Runs the app in development mode
+- `npm run build` - Builds the app for production
+- `npm test` - Launches the test runner
+- `npm run eject` - Ejects from Create React App (use with caution)
 
-### `npm start`
+## Technologies Used
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- React 19.1.1
+- AWS SDK v3 (DynamoDB)
+- CSS3 with modern features
+- Cloud-based data persistence
+- Responsive design principles
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Project Structure
 
-### `npm test`
+```
+src/
+├── components/
+│   ├── StudentManagement.jsx    # Main component
+│   └── StudentManagement.css    # Component styles
+├── services/
+│   └── studentService.js        # CRUD operations
+├── App.js                       # Main app component
+└── App.css                      # App-level styles
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Future Enhancements
 
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Database integration (MongoDB, PostgreSQL)
+- User authentication and authorization
+- Advanced filtering and sorting
+- Export functionality (CSV, PDF)
+- Bulk operations
+- Student photo uploads
+- Academic performance tracking

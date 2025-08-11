@@ -8,7 +8,8 @@ const StudentManagement = () => {
     fullName: '',
     address: '',
     email: '',
-    phoneNumber: ''
+    phoneNumber: '',
+    profileImage: null
   });
   const [editingId, setEditingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,11 +17,52 @@ const StudentManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tableStatus, setTableStatus] = useState('initializing');
+  const [imageProcessing, setImageProcessing] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalStudents, setTotalStudents] = useState(0);
+
+  // Helper function to compress image
+  const compressImage = (file, maxWidth = 150, maxHeight = 150, quality = 0.6) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions maintaining aspect ratio
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress image
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(resolve, 'image/jpeg', quality);
+      };
+      
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Fallback compression for very large images
+  const compressImageAggressively = (file) => {
+    return compressImage(file, 100, 100, 0.5);
+  };
 
   // Initialize table and load students on component mount
   useEffect(() => {
@@ -91,7 +133,8 @@ const StudentManagement = () => {
       fullName: '',
       address: '',
       email: '',
-      phoneNumber: ''
+      phoneNumber: '',
+      profileImage: null
     });
     setEditingId(null);
     setIsFormVisible(false);
@@ -130,7 +173,8 @@ const StudentManagement = () => {
       fullName: student.fullName,
       address: student.address,
       email: student.email,
-      phoneNumber: student.phoneNumber
+      phoneNumber: student.phoneNumber,
+      profileImage: student.profileImage || null
     });
     setEditingId(student.id);
     setIsFormVisible(true);
@@ -404,6 +448,160 @@ const StudentManagement = () => {
                 />
               </div>
             </div>
+            <div className="form-row">
+              <div className="form-group full-width">
+                <label>Profile Image:</label>
+                <div className="image-upload-container">
+                  <input
+                    type="file"
+                    name="profileImage"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        // Validate file type
+                        if (!file.type.startsWith('image/')) {
+                          setError('Please select a valid image file.');
+                          return;
+                        }
+                        
+                        // Validate file size (5MB limit)
+                        if (file.size > 5 * 1024 * 1024) {
+                          setError('Image file size must be less than 5MB.');
+                          return;
+                        }
+                        
+                        try {
+                          setImageProcessing(true);
+                          setError(null);
+                          
+                          // Compress the image first
+                          const compressedBlob = await compressImage(file);
+                          
+                          // Convert compressed image to base64
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const base64String = event.target.result;
+                            
+                            // Check if the compressed image is still quite large
+                            if (base64String.length > 300000) { // ~300KB warning threshold
+                              setError('Warning: Image is still quite large. Consider using a smaller image for better performance.');
+                            }
+                            
+                            setFormData(prev => ({
+                              ...prev,
+                              profileImage: base64String
+                            }));
+                            setImageProcessing(false);
+                          };
+                          reader.onerror = () => {
+                            setError('Failed to process image. Please try again.');
+                            setImageProcessing(false);
+                          };
+                          reader.readAsDataURL(compressedBlob);
+                        } catch (error) {
+                          setError('Failed to process image. Please try again.');
+                          setImageProcessing(false);
+                          console.error('Image processing error:', error);
+                        }
+                      }
+                    }}
+                    disabled={loading || imageProcessing}
+                    className="profile-image-input"
+                    id="profile-image-input"
+                  />
+                  <label 
+                    htmlFor={imageProcessing ? undefined : "profile-image-input"}
+                    className={`image-upload-label ${imageProcessing ? 'processing' : ''}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!imageProcessing) {
+                        e.currentTarget.classList.add('drag-over');
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('drag-over');
+                    }}
+                    onDrop={async (e) => {
+                      e.preventDefault();
+                      if (imageProcessing) return;
+                      e.currentTarget.classList.remove('drag-over');
+                      const file = e.dataTransfer.files[0];
+                      if (file) {
+                        // Validate file type
+                        if (!file.type.startsWith('image/')) {
+                          setError('Please select a valid image file.');
+                          return;
+                        }
+                        
+                        // Validate file size (5MB limit)
+                        if (file.size > 5 * 1024 * 1024) {
+                          setError('Image file size must be less than 5MB.');
+                          return;
+                        }
+                        
+                        try {
+                          setImageProcessing(true);
+                          setError(null);
+                          
+                          // Compress the image first
+                          const compressedBlob = await compressImage(file);
+                          
+                          // Convert compressed image to base64
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const base64String = event.target.result;
+                            
+                            // Check if the compressed image is still quite large
+                            if (base64String.length > 300000) { // ~300KB warning threshold
+                              setError('Warning: Image is still quite large. Consider using a smaller image for better performance.');
+                            }
+                            
+                            setFormData(prev => ({
+                              ...prev,
+                              profileImage: base64String
+                            }));
+                            setImageProcessing(false);
+                          };
+                          reader.onerror = () => {
+                            setError('Failed to process image. Please try again.');
+                            setImageProcessing(false);
+                          };
+                          reader.readAsDataURL(compressedBlob);
+                        } catch (error) {
+                          setError('Failed to process image. Please try again.');
+                          setImageProcessing(false);
+                          console.error('Image processing error:', error);
+                        }
+                      }
+                    }}
+                  >
+                    {imageProcessing ? '🔄 Processing...' : (formData.profileImage ? 'Change Image' : '📷 Choose Image or Drag & Drop')}
+                  </label>
+                  <div className="image-help-text">
+                    <small>Images are automatically compressed to 150x150px for optimal storage.</small>
+                  </div>
+                </div>
+                {formData.profileImage && (
+                  <div className="image-preview">
+                    <img 
+                      src={formData.profileImage} 
+                      alt="Profile preview" 
+                      className="preview-image"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, profileImage: null }))}
+                      className="remove-image-button"
+                      title="Remove image"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="form-actions">
               <button type="submit" className="submit-button" disabled={loading}>
                 {loading ? 'Processing...' : (editingId ? 'Update Student' : 'Add Student')}
@@ -452,6 +650,7 @@ const StudentManagement = () => {
             <table className="students-table">
               <thead>
                 <tr>
+                  <th>Profile</th>
                   <th>Full Name</th>
                   <th>Email Address</th>
                   <th>Phone Number</th>
@@ -462,6 +661,21 @@ const StudentManagement = () => {
               <tbody>
                 {currentStudents.map(student => (
                   <tr key={student.id}>
+                    <td className="profile-cell">
+                      {student.profileImage ? (
+                        <div className="profile-image-cell">
+                          <img 
+                            src={student.profileImage} 
+                            alt={`${student.fullName}'s profile`} 
+                            className="profile-image-in-table"
+                          />
+                        </div>
+                      ) : (
+                        <div className="profile-placeholder">
+                          <span className="avatar-placeholder">👤</span>
+                        </div>
+                      )}
+                    </td>
                     <td>{student.fullName}</td>
                     <td>{student.email}</td>
                     <td>{student.phoneNumber}</td>

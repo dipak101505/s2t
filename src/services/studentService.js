@@ -190,12 +190,18 @@ class StudentService {
       // Ensure table exists before creating student
       await this.ensureStudentTableExists();
       
+      // Check if profile image is too large (DynamoDB has limits)
+      if (student.profileImage && student.profileImage.length > 400000) { // ~400KB base64 limit
+        throw new Error('Profile image is too large. Please use a smaller image or the system will automatically compress it.');
+      }
+      
       const newStudent = {
         id: Date.now().toString(),
         fullName: student.fullName,
         address: student.address,
         email: student.email,
         phoneNumber: student.phoneNumber,
+        profileImage: student.profileImage || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -255,6 +261,11 @@ class StudentService {
     try {
       // Ensure table exists before updating
       await this.ensureStudentTableExists();
+      
+      // Check if profile image is too large (DynamoDB has limits)
+      if (updatedData.profileImage && updatedData.profileImage.length > 400000) { // ~400KB base64 limit
+        throw new Error('Profile image is too large. Please use a smaller image or the system will automatically compress it.');
+      }
       
       const updateExpression = [];
       const expressionAttributeNames = {};

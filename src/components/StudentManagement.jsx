@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import studentService from '../services/studentService';
 import './StudentManagement.css';
 
@@ -16,11 +16,34 @@ const StudentManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tableStatus, setTableStatus] = useState('initializing');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalStudents, setTotalStudents] = useState(0);
 
   // Initialize table and load students on component mount
   useEffect(() => {
     initializeTable();
   }, []);
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery !== '') {
+        performSearch(searchQuery);
+      } else {
+        loadStudents();
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const initializeTable = async () => {
     try {
@@ -46,6 +69,7 @@ const StudentManagement = () => {
       setError(null);
       const allStudents = await studentService.getAllStudents();
       setStudents(allStudents);
+      setTotalStudents(allStudents.length);
     } catch (err) {
       setError('Failed to load students. Please check your AWS configuration.');
       console.error('Error loading students:', err);
@@ -91,6 +115,8 @@ const StudentManagement = () => {
       
       await loadStudents();
       resetForm();
+      // Reset to first page after adding/updating
+      setCurrentPage(1);
     } catch (err) {
       setError(`Failed to ${editingId ? 'update' : 'create'} student. Please try again.`);
       console.error('Error saving student:', err);
@@ -118,6 +144,11 @@ const StudentManagement = () => {
         setError(null);
         await studentService.deleteStudent(id);
         await loadStudents();
+        // Adjust current page if we're on a page that no longer exists
+        const maxPage = Math.ceil((totalStudents - 1) / pageSize);
+        if (currentPage > maxPage && maxPage > 0) {
+          setCurrentPage(maxPage);
+        }
       } catch (err) {
         setError('Failed to delete student. Please try again.');
         console.error('Error deleting student:', err);
@@ -127,14 +158,20 @@ const StudentManagement = () => {
     }
   };
 
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
+  // Separate search input handler - just updates the query without triggering search
+  const handleSearchInputChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  // Actual search function that gets called after debounce
+  const performSearch = async (query) => {
     try {
       setLoading(true);
       setError(null);
       if (query.trim()) {
         const results = await studentService.searchStudents(query);
         setStudents(results);
+        setTotalStudents(results.length);
       } else {
         await loadStudents();
       }
@@ -150,7 +187,84 @@ const StudentManagement = () => {
     await initializeTable();
   };
 
-  const filteredStudents = students;
+  // Pagination calculations
+  const totalPages = Math.ceil(totalStudents / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentStudents = students.slice(startIndex, endIndex);
+
+  // Page navigation handlers
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToFirstPage = () => {
+    setCurrentPage(1);
+  };
+
+  const goToLastPage = () => {
+    setCurrentPage(totalPages);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (e) => {
+    const newPageSize = parseInt(e.target.value);
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  // Generate page numbers for pagination display
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show smart pagination with ellipsis
+      if (currentPage <= 3) {
+        // Near start
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near end
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // Middle
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
 
   // Show loading state while table is initializing
   if (tableStatus === 'initializing') {
@@ -222,10 +336,15 @@ const StudentManagement = () => {
           type="text"
           placeholder="Search students by name, email, or phone..."
           value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={handleSearchInputChange}
           className="search-input"
           disabled={loading}
         />
+        {searchQuery && (
+          <div className="search-status">
+            {loading ? 'Searching...' : `Found ${totalStudents} students`}
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Form */}
@@ -300,54 +419,131 @@ const StudentManagement = () => {
       {/* Students Table */}
       <div className="table-container">
         <div className="table-header">
-          <h3>Students ({filteredStudents.length})</h3>
-          {loading && <div className="loading-spinner">Loading...</div>}
+          <div className="table-info">
+            <h3>Students ({totalStudents})</h3>
+            {loading && <div className="loading-spinner">Loading...</div>}
+          </div>
+          <div className="pagination-controls">
+            <label htmlFor="pageSize">Show:</label>
+            <select
+              id="pageSize"
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              disabled={loading}
+              className="page-size-select"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="page-info">
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
         </div>
         
-        {!loading && filteredStudents.length === 0 ? (
+        {!loading && currentStudents.length === 0 ? (
           <div className="no-students">
             <p>No students found. {searchQuery && 'Try adjusting your search.'}</p>
           </div>
         ) : (
-          <table className="students-table">
-            <thead>
-              <tr>
-                <th>Full Name</th>
-                <th>Email Address</th>
-                <th>Phone Number</th>
-                <th>Address</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.map(student => (
-                <tr key={student.id}>
-                  <td>{student.fullName}</td>
-                  <td>{student.email}</td>
-                  <td>{student.phoneNumber}</td>
-                  <td>{student.address}</td>
-                  <td className="actions">
-                    <button
-                      onClick={() => handleEdit(student)}
-                      className="edit-button"
-                      title="Edit student"
-                      disabled={loading}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => handleDelete(student.id)}
-                      className="delete-button"
-                      title="Delete student"
-                      disabled={loading}
-                    >
-                      🗑️
-                    </button>
-                  </td>
+          <>
+            <table className="students-table">
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Email Address</th>
+                  <th>Phone Number</th>
+                  <th>Address</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {currentStudents.map(student => (
+                  <tr key={student.id}>
+                    <td>{student.fullName}</td>
+                    <td>{student.email}</td>
+                    <td>{student.phoneNumber}</td>
+                    <td>{student.address}</td>
+                    <td className="actions">
+                      <button
+                        onClick={() => handleEdit(student)}
+                        className="edit-button"
+                        title="Edit student"
+                        disabled={loading}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDelete(student.id)}
+                        className="delete-button"
+                        title="Delete student"
+                        disabled={loading}
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <div className="pagination-info">
+                  Showing {startIndex + 1} to {Math.min(endIndex, totalStudents)} of {totalStudents} students
+                </div>
+                <div className="pagination-navigation">
+                  <button
+                    onClick={goToFirstPage}
+                    disabled={currentPage === 1 || loading}
+                    className="pagination-button"
+                    title="First page"
+                  >
+                    ⏮️
+                  </button>
+                  <button
+                    onClick={goToPreviousPage}
+                    disabled={currentPage === 1 || loading}
+                    className="pagination-button"
+                    title="Previous page"
+                  >
+                    ◀️
+                  </button>
+                  
+                  {getPageNumbers().map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof page === 'number' ? goToPage(page) : null}
+                      disabled={page === '...' || loading}
+                      className={`pagination-button ${page === currentPage ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages || loading}
+                    className="pagination-button"
+                    title="Next page"
+                  >
+                    ▶️
+                  </button>
+                  <button
+                    onClick={goToLastPage}
+                    disabled={currentPage === totalPages || loading}
+                    className="pagination-button"
+                    title="Last page"
+                  >
+                    ⏭️
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
